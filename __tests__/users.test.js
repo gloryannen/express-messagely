@@ -17,14 +17,14 @@ describe("Test User class", function () {
 
   test("can register", async function () {
     let u = await User.register({
-      username: "joel",
+      username: "tester",
       password: "password",
-      first_name: "Joel",
-      last_name: "Burton",
+      first_name: "tester",
+      last_name: "testery",
       phone: "+14155551212",
     });
 
-    expect(u.username).toBe("joel");
+    expect(u.username).toBe("tester");
     expect(u.password).not.toBe(undefined);
   });
 
@@ -32,7 +32,7 @@ describe("Test User class", function () {
     let isValid = await User.authenticate("test", "password");
     expect(isValid).toBeTruthy();
 
-    isValid = await User.authenticate("test", "xxx");
+    isValid = await User.authenticate("test", "123");
     expect(isValid).toBeFalsy();
   });
 

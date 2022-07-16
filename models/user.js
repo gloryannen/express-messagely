@@ -16,8 +16,8 @@ class User {
     const hashedPwd = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
     const result = await db.query(
       `
-    INSERT INTO users (username, password, first_name, last_name, phone, join_at)
-    VALUES ($1, $2, $3, $4, $5, current_timestamp)
+    INSERT INTO users (username, password, first_name, last_name, phone, join_at, last_login_at)
+    VALUES ($1, $2, $3, $4, $5, current_timestamp, current_timestamp)
     RETURNING username, password, first_name, last_name, phone 
     `,
       [username, hashedPwd, first_name, last_name, phone]
@@ -65,10 +65,13 @@ class User {
    * [{username, first_name, last_name, phone}, ...] */
 
   static async all() {
-    const result = await db.query(`
-    SELECT (username, first_name, last_name, phone)
-    FROM users
-    `);
+    const result = await db.query(
+      `
+      SELECT username, first_name, last_name, phone
+      FROM users
+      ORDER BY username
+      `
+    );
     return result.rows;
   }
 
@@ -116,7 +119,7 @@ class User {
     `,
       [username]
     );
-    return result.rows.map((m) => ({
+    return result.rows.map((msg) => ({
       id: msg.id,
       to_user: {
         username: msg.to_username,
@@ -148,7 +151,7 @@ class User {
     WHERE to_username = $1`,
       [username]
     );
-    return result.rows.map((m) => ({
+    return result.rows.map((msg) => ({
       id: msg.id,
       from_user: {
         username: msg.from_username,
