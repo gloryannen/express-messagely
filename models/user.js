@@ -16,27 +16,61 @@ class User {
     const hashedPwd = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
     const result = await db.query(
       `
-    INSERT INTO users (username, password, first_name, last_name, phone)
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING username, password, first_name, last_name, phone    
+    INSERT INTO users (username, password, first_name, last_name, phone, join_at)
+    VALUES ($1, $2, $3, $4, $5, current_timestamp)
+    RETURNING username, password, first_name, last_name, phone 
     `,
       [username, hashedPwd, first_name, last_name, phone]
     );
-    return res.json(result.rows[0]);
+    return result.rows[0];
   }
 
   /** Authenticate: is this username/password valid? Returns boolean. */
 
-  static async authenticate(username, password) {}
+  static async authenticate(username, password) {
+    const result = await db.query(
+      `
+    SELECT password
+    FROM users
+    WHERE username = $1`,
+      [username]
+    );
+    let user = result.rows[0];
+    if (user) {
+      if ((await bcrypt.compare(password, user.password)) === true) {
+        return true;
+      }
+    }
+  }
 
   /** Update last_login_at for user */
 
-  static async updateLoginTimestamp(username) {}
+  static async updateLoginTimestamp(username) {
+    const result = await db.query(
+      `UPDATE users
+      SET last_login_at = current_timestamp
+      WHERE username = $1
+      RETURNING username`,
+      [username]
+    );
+
+    if (!result.rows[0]) {
+      throw new ExpressError(`No such user: ${username}`, 404);
+    }
+
+    return result.rows[0];
+  }
 
   /** All: basic info on all users:
    * [{username, first_name, last_name, phone}, ...] */
 
-  static async all() {}
+  static async all() {
+    const result = await db.query(`
+    SELECT (username, first_name, last_name, phone)
+    FROM users
+    `);
+    return result.rows;
+  }
 
   /** Get: get user by username
    *
@@ -47,7 +81,21 @@ class User {
    *          join_at,
    *          last_login_at } */
 
-  static async get(username) {}
+  static async get(username) {
+    const result = await db.query(
+      `
+    SELECT username, first_name, last_name, phone, join_at, last_login_at
+    FROM users
+    WHERE username = $1
+    `,
+      [username]
+    );
+    if (!result.rows[0]) {
+      throw new ExpressError(`No such user: ${username}`, 404);
+    }
+
+    return result.rows[0];
+  }
 
   /** Return messages from this user.
    *
@@ -57,7 +105,30 @@ class User {
    *   {username, first_name, last_name, phone}
    */
 
-  static async messagesFrom(username) {}
+  static async messagesFrom(username) {
+    const result = await db.query(
+      `
+    SELECT msg.id, msg.to_username, u.first_name, u.last_name, u.phone, msg.body, msg.sent_at, msg.read_at
+    FROM messages AS msg
+    JOIN users AS u
+    ON msg.to_username = u.username
+    WHERE from_username = $1
+    `,
+      [username]
+    );
+    return result.rows.map((m) => ({
+      id: msg.id,
+      to_user: {
+        username: msg.to_username,
+        first_name: msg.first_name,
+        last_name: msg.last_name,
+        phone: msg.phone,
+      },
+      body: msg.body,
+      sent_at: msg.sent_at,
+      read_at: msg.read_at,
+    }));
+  }
 
   /** Return messages to this user.
    *
@@ -67,7 +138,29 @@ class User {
    *   {username, first_name, last_name, phone}
    */
 
-  static async messagesTo(username) {}
+  static async messagesTo(username) {
+    const result = await db.query(
+      `
+    SELECT msg.id, msg.from_username, u.first_name, u.last_name, u.phone, msg.body, msg.sent_at, msg.read_at
+    FROM messages AS msg
+    JOIN users AS u
+    ON msg.from_username = u.username
+    WHERE to_username = $1`,
+      [username]
+    );
+    return result.rows.map((m) => ({
+      id: msg.id,
+      from_user: {
+        username: msg.from_username,
+        first_name: msg.first_name,
+        last_name: msg.last_name,
+        phone: msg.phone,
+      },
+      body: msg.body,
+      sent_at: msg.sent_at,
+      read_at: msg.read_at,
+    }));
+  }
 }
 
 module.exports = User;

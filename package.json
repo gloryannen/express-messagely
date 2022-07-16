@@ -18,5 +18,8 @@
     "jsonwebtoken": "^8.5.1",
     "pg": "^8.7.3",
     "supertest": "^4.0.2"
+  },
+  "devDependencies": {
+    "jest": "^28.1.3"
   }
 }
